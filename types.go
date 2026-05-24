@@ -79,6 +79,11 @@ type processDTO struct {
 	ExitedAt  int64    `json:"exited_at"`
 }
 
+// processListDTO is the wire format returned by GET /v1/sandboxes/{id}/processes.
+type processListDTO struct {
+	Processes []processDTO `json:"processes"`
+}
+
 // ExposedPort describes a currently exposed port.
 type ExposedPort struct {
 	Port      int       `json:"port"`

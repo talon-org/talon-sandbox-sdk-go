@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Expose registers a port for external access and returns the preview URL.
 //
-// If the server returns 404 (endpoint not yet implemented per Spec 50),
-// ErrNotImplemented is returned with a human-friendly message.
+// If the server is missing the /expose route entirely (pre-Spec 50),
+// ErrNotImplemented is returned. A 404 that names the sandbox or port in the
+// body is treated as a real not-found and surfaced as ErrNotFound so callers
+// can distinguish "old server" from "wrong sandbox id".
 //
 // Example:
 //
@@ -38,9 +41,8 @@ func (s *Sandbox) Expose(ctx context.Context, port int, opts ...ExposeOpts) (str
 	}
 	_, err := s.client.post(ctx, fmt.Sprintf("/v1/sandboxes/%s/expose", s.info.ID), body, &resp)
 	if err != nil {
-		var ae *APIError
-		if errors.As(err, &ae) && ae.StatusCode == 404 {
-			return "", fmt.Errorf("%w: expose endpoint not yet available on this server (Spec 50 pending)", ErrNotImplemented)
+		if endpointMissing(err) {
+			return "", fmt.Errorf("%w: expose endpoint not yet available on this server", ErrNotImplemented)
 		}
 		return "", fmt.Errorf("expose port %d: %w", port, err)
 	}
@@ -51,8 +53,7 @@ func (s *Sandbox) Expose(ctx context.Context, port int, opts ...ExposeOpts) (str
 func (s *Sandbox) Unexpose(ctx context.Context, port int) error {
 	_, err := s.client.delete(ctx, fmt.Sprintf("/v1/sandboxes/%s/expose/%d", s.info.ID, port))
 	if err != nil {
-		var ae *APIError
-		if errors.As(err, &ae) && ae.StatusCode == 404 {
+		if endpointMissing(err) {
 			return fmt.Errorf("%w: expose endpoint not yet available on this server", ErrNotImplemented)
 		}
 		return fmt.Errorf("unexpose port %d: %w", port, err)
@@ -67,11 +68,27 @@ func (s *Sandbox) Exposed(ctx context.Context) ([]ExposedPort, error) {
 	}
 	_, err := s.client.get(ctx, fmt.Sprintf("/v1/sandboxes/%s/expose", s.info.ID), &resp)
 	if err != nil {
-		var ae *APIError
-		if errors.As(err, &ae) && ae.StatusCode == 404 {
+		if endpointMissing(err) {
 			return nil, fmt.Errorf("%w: expose endpoint not yet available on this server", ErrNotImplemented)
 		}
 		return nil, fmt.Errorf("list exposed ports: %w", err)
 	}
 	return resp.Ports, nil
+}
+
+// endpointMissing returns true when a 404 error body is the chi router's
+// default "404 page not found" (no JSON, no resource name) — i.e. the server
+// genuinely doesn't expose this route. A 404 whose message names "sandbox" or
+// "port" is a real not-found from the handler and should propagate as
+// ErrNotFound to let the caller fix their input.
+func endpointMissing(err error) bool {
+	var ae *APIError
+	if !errors.As(err, &ae) || ae.StatusCode != 404 {
+		return false
+	}
+	msg := strings.ToLower(ae.Message)
+	if strings.Contains(msg, "sandbox") || strings.Contains(msg, "port") {
+		return false
+	}
+	return true
 }

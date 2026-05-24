@@ -67,9 +67,18 @@ func (t *Terminal) Open(ctx context.Context) (*PTYSession, error) {
 	}
 	conn.SetReadLimit(4 * 1024 * 1024)
 
+	// Derive a session-scoped context from the parent. Cancelling sessCtx
+	// (via Close, or parent ctx cancellation) unblocks conn.Read so the
+	// recvLoop goroutine exits cleanly. Without this, recvLoop would call
+	// conn.Read(context.Background()) which only returns on network error —
+	// any caller that drops a *PTYSession reference without Close() leaks
+	// the goroutine and the WebSocket connection.
+	sessCtx, cancel := context.WithCancel(ctx)
 	sess := &PTYSession{
-		conn:   conn,
-		stopCh: make(chan struct{}),
+		conn:    conn,
+		stopCh:  make(chan struct{}),
+		sessCtx: sessCtx,
+		cancel:  cancel,
 	}
 	go sess.recvLoop()
 	return sess, nil
@@ -86,10 +95,12 @@ func toWS(u string) string {
 // PTYSession is a live bidirectional PTY over WebSocket.
 // Safe for concurrent use.
 type PTYSession struct {
-	conn   *websocket.Conn
-	mu     sync.Mutex
-	closed bool
-	stopCh chan struct{}
+	conn    *websocket.Conn
+	mu      sync.Mutex
+	closed  bool
+	stopCh  chan struct{}
+	sessCtx context.Context
+	cancel  context.CancelFunc
 
 	cbMu     sync.RWMutex
 	dataFns  []func([]byte)
@@ -132,27 +143,30 @@ func (p *PTYSession) Resize(ctx context.Context, rows, cols int) error {
 	return p.conn.Write(ctx, websocket.MessageText, msg)
 }
 
-// Close closes the PTY session gracefully.
+// Close closes the PTY session gracefully. Idempotent.
 func (p *PTYSession) Close(ctx context.Context) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.closed {
+		p.mu.Unlock()
 		return nil
 	}
 	p.closed = true
 	close(p.stopCh)
+	cancel := p.cancel
+	p.mu.Unlock()
+	// Cancel session ctx so recvLoop's pending Read returns immediately.
+	cancel()
 	return p.conn.Close(websocket.StatusNormalClosure, "")
 }
 
 func (p *PTYSession) recvLoop() {
+	defer p.cancel() // release sessCtx resources on natural exit
 	defer p.emitClose()
 	for {
-		select {
-		case <-p.stopCh:
-			return
-		default:
-		}
-		_, data, err := p.conn.Read(context.Background())
+		// Reading with the session ctx instead of context.Background() so
+		// Close() (or parent ctx cancel) unblocks this goroutine without
+		// waiting for the server to close the WebSocket.
+		_, data, err := p.conn.Read(p.sessCtx)
 		if err != nil {
 			return
 		}

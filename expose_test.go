@@ -88,11 +88,14 @@ func TestExpose_WithSign(t *testing.T) {
 }
 
 func TestExpose_NotImplemented(t *testing.T) {
+	// Body without "sandbox" / "port" keywords (chi's default "404 page not
+	// found" or generic "not found") → endpoint genuinely missing on this
+	// server version. Surface as ErrNotImplemented.
 	mux := http.NewServeMux()
 	c := newTestClient(t, mux)
 	sb := stubSandbox(t, mux, "sb_noimpl", c)
 
-	mux.HandleFunc("/v1/sandboxes/sb_noimpl/expose", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/sandboxes/sb_noimpl/expose", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write([]byte(`{"error":"not found"}`))
@@ -104,6 +107,32 @@ func TestExpose_NotImplemented(t *testing.T) {
 	}
 	if !errors.Is(err, sandbox.ErrNotImplemented) {
 		t.Fatalf("expected ErrNotImplemented, got %v", err)
+	}
+}
+
+// C4 regression: 404 whose body identifies the resource is a real NotFound,
+// not a missing endpoint. Caller should see ErrNotFound so they can fix
+// their sandbox id rather than get a misleading "upgrade your server".
+func TestExpose_SandboxNotFound_PropagatesAsErrNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	c := newTestClient(t, mux)
+	sb := stubSandbox(t, mux, "sb_gone", c)
+
+	mux.HandleFunc("/v1/sandboxes/sb_gone/expose", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		w.Write([]byte(`{"error":"sandbox not found"}`))
+	})
+
+	_, err := sb.Expose(context.Background(), 5173)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if errors.Is(err, sandbox.ErrNotImplemented) {
+		t.Fatalf("should NOT be ErrNotImplemented (sandbox-naming body): %v", err)
+	}
+	if !errors.Is(err, sandbox.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 

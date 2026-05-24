@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/cookiejar"
 	"strings"
 	"time"
 
@@ -166,16 +168,31 @@ func List(ctx context.Context, opts ListOpts, clientOpts ...Option) ([]*Sandbox,
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 // resolveClient returns the explicit client (from opts) or the global default.
+//
+// When opts are present, the result inherits the global Configure() defaults
+// (baseURL / apiKey / httpClient) and then applies the supplied opts on top.
+// Without inheritance, passing `WithAPIKey("other")` to Create would silently
+// reset baseURL back to "http://localhost:18080", losing the production server
+// set by an earlier Configure() call.
 func resolveClient(opts []Option) *Client {
+	base := defaultClient()
 	if len(opts) == 0 {
-		return defaultClient()
+		return base
 	}
-	// Build a new client with the global defaults as base, then apply opts.
-	c := New("")
+
+	jar, _ := cookiejar.New(nil)
+	clone := &Client{
+		baseURL: base.baseURL,
+		apiKey:  base.apiKey,
+		httpClient: &http.Client{
+			Timeout: base.httpClient.Timeout,
+			Jar:     jar,
+		},
+	}
 	for _, o := range opts {
-		o(c)
+		o(clone)
 	}
-	return c
+	return clone
 }
 
 func matchesLabels(have, want map[string]string) bool {

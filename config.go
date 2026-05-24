@@ -28,6 +28,14 @@ func Configure(server, apiKey string) {
 	globalClient = New(server, WithAPIKey(apiKey))
 }
 
+// ResetConfigureForTest clears the package-level default client so the next
+// call to Create/Get/List re-reads environment variables. Test-only helper.
+func ResetConfigureForTest() {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+	globalClient = nil
+}
+
 // defaultClient returns the global client, lazily initialising it from env.
 func defaultClient() *Client {
 	globalMu.RLock()
