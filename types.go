@@ -10,6 +10,11 @@ type Opts struct {
 	Resources Resources
 	// Network policy: "allowlist" | "open" | "sealed". Defaults to server default.
 	Network string
+	// NetworkAllowedHosts is the per-sandbox egress allowlist (hosts/IPs/CIDRs)
+	// permitted under the "allowlist" (restricted-egress) policy. Non-empty
+	// overrides the worker's global allowlist; empty falls back to it. Only
+	// meaningful when Network resolves to "allowlist".
+	NetworkAllowedHosts []string
 	// Env is startup environment variables.
 	Env map[string]string
 	// Timeout is the idle-timeout duration string, e.g. "30m". Empty = disabled.

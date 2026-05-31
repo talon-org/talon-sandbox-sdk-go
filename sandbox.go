@@ -213,6 +213,9 @@ func buildCreateBody(opts Opts) (map[string]any, error) {
 	if n := normalizeNetwork(opts.Network); n != "" {
 		body["network_policy"] = n
 	}
+	if len(opts.NetworkAllowedHosts) > 0 {
+		body["network_allowed_hosts"] = opts.NetworkAllowedHosts
+	}
 	if len(opts.Env) > 0 {
 		body["env"] = opts.Env
 	}
