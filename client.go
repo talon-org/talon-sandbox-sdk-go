@@ -142,6 +142,33 @@ func (c *Client) post(ctx context.Context, path string, body any, out any) (*htt
 	return c.do(req, out)
 }
 
+// postWithTimeout 与 post 相同,但用独立的长超时 http.Client 发请求。
+// 用于 agent/run 这类同步阻塞最长 5min 的端点——client 默认 Timeout(30s)
+// 是硬上限,context 无法放宽,必须用一个 Timeout 更长的 client。
+func (c *Client) postWithTimeout(ctx context.Context, path string, body any, out any, timeout time.Duration) (*http.Response, error) {
+	req, err := c.newRequest(ctx, http.MethodPost, path, body)
+	if err != nil {
+		return nil, err
+	}
+	longClient := *c.httpClient // 浅拷贝:共享 Transport(连接池),仅改 Timeout
+	longClient.Timeout = timeout
+	resp, err := httpx.DoJSON(&longClient, req, out)
+	if err != nil {
+		if httpx.IsNetworkError(err) {
+			return resp, &NetworkError{Cause: err}
+		}
+		if httpx.IsAPIError(err) {
+			ae := newAPIError(httpx.StatusCode(err), httpx.Message(err))
+			if resp != nil {
+				ae.RequestID = resp.Header.Get("X-Request-ID")
+			}
+			return resp, ae
+		}
+		return resp, err
+	}
+	return resp, nil
+}
+
 func (c *Client) delete(ctx context.Context, path string) (*http.Response, error) {
 	req, err := c.newRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {

@@ -36,6 +36,8 @@ type BrowserSession struct {
 	CDPPath   string `json:"cdp_path"`
 	// CDPURL is the WebSocket URL for the Chrome DevTools Protocol.
 	CDPURL string `json:"cdp_ws_url"`
+	// HostPort 是容器→host 的映射端口，仅供排障；日常调用方应只用 CDPURL。
+	HostPort int32 `json:"host_port,omitempty"`
 }
 
 // Start launches a headless Chromium inside the sandbox.

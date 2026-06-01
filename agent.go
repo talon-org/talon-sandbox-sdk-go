@@ -3,7 +3,12 @@ package talonsandbox
 import (
 	"context"
 	"fmt"
+	"time"
 )
+
+// agentRunTimeout 是 agent/run 同步端点的客户端超时。服务端硬上限 5min,
+// 这里留 30s 余量;否则会走 client 默认 30s 超时,在 agent 任务完成前断开。
+const agentRunTimeout = 5*time.Minute + 30*time.Second
 
 // AgentRunOpts 是 AgentRun 的可选参数。
 type AgentRunOpts struct {
@@ -69,8 +74,9 @@ func (s *Sandbox) AgentRun(ctx context.Context, goal string, opts ...AgentRunOpt
 		}
 	}
 
+	// agent/run 同步阻塞最长 5min,用独立长超时 client(默认 30s 是硬上限)。
 	var result AgentRunResult
-	_, err := s.client.post(ctx, fmt.Sprintf("/v1/sandboxes/%s/agent/run", s.info.ID), body, &result)
+	_, err := s.client.postWithTimeout(ctx, fmt.Sprintf("/v1/sandboxes/%s/agent/run", s.info.ID), body, &result, agentRunTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("agent run %q: %w", goal, err)
 	}
