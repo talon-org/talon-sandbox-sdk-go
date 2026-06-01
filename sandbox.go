@@ -89,6 +89,26 @@ func (s *Sandbox) Resume(ctx context.Context) error {
 	return nil
 }
 
+// Start 将 stopped 状态的 sandbox 重新拉起（POST .../start，204 无 body）。
+// 与 Resume 不同：Resume 解冻进程（paused→running），Start 是冷启动（stopped→running）。
+func (s *Sandbox) Start(ctx context.Context) error {
+	_, err := s.client.post(ctx, "/v1/sandboxes/"+s.info.ID+"/start", nil, nil)
+	if err != nil {
+		return fmt.Errorf("start sandbox %s: %w", s.info.ID, err)
+	}
+	return nil
+}
+
+// Stop 将 running 状态的 sandbox 停止（POST .../stop，204 无 body）。
+// 与 Pause 不同：Pause 是冻结进程保留内存（可快速 Resume），Stop 是关机（需 Start 冷起）。
+func (s *Sandbox) Stop(ctx context.Context) error {
+	_, err := s.client.post(ctx, "/v1/sandboxes/"+s.info.ID+"/stop", nil, nil)
+	if err != nil {
+		return fmt.Errorf("stop sandbox %s: %w", s.info.ID, err)
+	}
+	return nil
+}
+
 // Kill permanently destroys the sandbox.
 func (s *Sandbox) Kill(ctx context.Context) error {
 	if _, err := s.client.delete(ctx, "/v1/sandboxes/"+s.info.ID); err != nil {

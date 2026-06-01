@@ -133,10 +133,14 @@ func (s *Sandbox) fetchProcessLogs(ctx context.Context, procID string) ([]byte, 
 
 // SpawnOpts configures an async Spawn call.
 type SpawnOpts struct {
-	// Cwd is the working directory inside the sandbox.
+	// Cwd 是进程在沙箱内的工作目录。
 	Cwd string
-	// Env are additional environment variables in "KEY=value" form.
+	// Env 是以 "KEY=value" 形式追加的环境变量。
 	Env []string
+	// ExposePorts 是进程声明对外暴露的容器端口，如 []int32{5173}。
+	// runc adapter 据此建立容器→host DNAT，预览反代准入与路由依赖它；
+	// 空（nil 或长度为 0）表示不声明，服务端沿用默认值，旧调用零变化。
+	ExposePorts []int32
 }
 
 // Process is a handle to a long-running spawned process.
@@ -252,6 +256,10 @@ func (s *Sandbox) Spawn(ctx context.Context, command string, opts ...SpawnOpts) 
 		}
 		if len(o.Env) > 0 {
 			body["env"] = o.Env
+		}
+		// 仅非空时写入，保持向后兼容；与服务端 StartProcessRequest.ExposePorts 对齐。
+		if len(o.ExposePorts) > 0 {
+			body["expose_ports"] = o.ExposePorts
 		}
 	}
 

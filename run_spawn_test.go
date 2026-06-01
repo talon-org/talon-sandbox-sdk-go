@@ -3,6 +3,7 @@ package talonsandbox_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -170,6 +171,65 @@ func TestSpawn(t *testing.T) {
 	}
 	if proc.ID() != "proc_s1" {
 		t.Fatalf("ID() = %q, want %q", proc.ID(), "proc_s1")
+	}
+}
+
+// TestSpawn_ExposePorts 验证 SpawnOpts.ExposePorts 非空时请求体包含 expose_ports 字段，
+// 且其值与传入的端口列表一致；nil/空时请求体不含该键（向后兼容）。
+func TestSpawn_ExposePorts(t *testing.T) {
+	var capturedBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sandboxes/sb_ep", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sandbox.SandboxInfo{ID: "sb_ep", State: "running"})
+	})
+	mux.HandleFunc("/v1/sandboxes/sb_ep/processes", func(w http.ResponseWriter, r *http.Request) {
+		// 解析并保存请求体，供断言使用。
+		raw, _ := io.ReadAll(r.Body)
+		json.Unmarshal(raw, &capturedBody)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id": "proc_ep1", "sandbox_id": "sb_ep",
+			"command": []string{"npm", "run", "dev"},
+			"state": "running", "exit_code": 0, "pid": 10, "started_at": 0, "exited_at": 0,
+		})
+	})
+
+	c := newTestClient(t, mux)
+	sb, _ := sandbox.Get(context.Background(), "sb_ep", optionsFromClient(c)...)
+
+	// 场景一：ExposePorts 非空，body 应含 expose_ports。
+	capturedBody = nil
+	_, err := sb.Spawn(context.Background(), "npm run dev", sandbox.SpawnOpts{
+		ExposePorts: []int32{5173, 8080},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ports, ok := capturedBody["expose_ports"]
+	if !ok {
+		t.Fatal("expose_ports 未写入请求体")
+	}
+	// JSON 反序列化数字为 float64，转回比较。
+	portsSlice, ok := ports.([]any)
+	if !ok || len(portsSlice) != 2 {
+		t.Fatalf("expose_ports 期望长度 2，实际 %v", ports)
+	}
+	if int(portsSlice[0].(float64)) != 5173 || int(portsSlice[1].(float64)) != 8080 {
+		t.Fatalf("expose_ports 值不符：%v", portsSlice)
+	}
+
+	// 场景二：ExposePorts 为 nil，body 不应含 expose_ports（向后兼容）。
+	capturedBody = nil
+	_, err = sb.Spawn(context.Background(), "npm run dev", sandbox.SpawnOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := capturedBody["expose_ports"]; exists {
+		t.Fatal("ExposePorts 为空时不应写入 expose_ports 键")
 	}
 }
 
