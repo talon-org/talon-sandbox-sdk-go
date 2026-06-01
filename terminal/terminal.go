@@ -24,7 +24,7 @@ import (
 // Terminal manages PTY sessions for a single sandbox.
 type Terminal struct {
 	sandboxID string
-	wsBase    string // e.g. "ws://localhost:18080"
+	wsBase    string // 例如 "wss://api.sandbox.talon.net.cn"，自部署时为 "ws://localhost:18080"
 	authHdr   string
 	cookies   []*http.Cookie
 }

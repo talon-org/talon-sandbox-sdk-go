@@ -52,8 +52,10 @@ func WithBaseURL(url string) Option {
 
 // New creates a Client.
 //
-// serverURL defaults to TALON_SANDBOX_SERVER env or "http://localhost:18080".
-// Pass WithAPIKey to set auth; otherwise TALON_SANDBOX_API_KEY env is used.
+// serverURL 默认值为官方托管端点 https://api.sandbox.talon.net.cn；
+// 自部署用户可通过 TALON_SANDBOX_SERVER 环境变量或显式传入 serverURL 覆盖。
+// 传入空字符串等同于使用默认值。
+// 通过 WithAPIKey 设置认证 token，或依赖 TALON_SANDBOX_API_KEY 环境变量。
 func New(serverURL string, opts ...Option) *Client {
 	if serverURL == "" {
 		serverURL = defaultServer

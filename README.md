@@ -69,17 +69,28 @@ list, _ := sandbox.List(ctx, sandbox.ListOpts{Labels: map[string]string{"project
 
 ## Configuration
 
-Set environment variables:
+SDK 默认连接官方托管端点 `https://api.sandbox.talon.net.cn`。
+只需设置 API Key 即可直接使用：
 
 ```
-TALON_SANDBOX_SERVER=https://api.example.com
 TALON_SANDBOX_API_KEY=ask_...
 ```
 
-Or configure programmatically:
+自部署用户可通过环境变量覆盖服务地址：
+
+```
+TALON_SANDBOX_SERVER=https://your-self-hosted.example.com
+TALON_SANDBOX_API_KEY=ask_...
+```
+
+或在代码中显式配置：
 
 ```go
-sandbox.Configure("https://api.example.com", "ask_...")
+// 托管端（只需 API Key，无需设置 server）
+sandbox.Configure("", "ask_...")
+
+// 自部署端
+sandbox.Configure("https://your-self-hosted.example.com", "ask_...")
 ```
 
 ## License

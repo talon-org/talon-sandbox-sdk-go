@@ -10,10 +10,9 @@ import (
 	sandbox "x.xgit.pro/dark/talon-sandbox-sdk-go"
 )
 
-// C3 regression: when the caller has Configure()d a production server and
-// then passes additional opts (e.g. WithAPIKey for a different tenant), the
-// resulting client must still hit the configured baseURL — not silently
-// reset back to "http://localhost:18080".
+// C3 回归测试：当调用方通过 Configure() 设置了生产端点后，
+// 再传入额外 opts（如 WithAPIKey 切换租户），最终客户端必须仍打向
+// Configure() 设定的 baseURL，而不是被静默重置为默认端点。
 func TestConfigure_InheritedByExplicitOpts(t *testing.T) {
 	hit := false
 	mux := http.NewServeMux()
@@ -25,9 +24,9 @@ func TestConfigure_InheritedByExplicitOpts(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	// Reset any previous global state, configure with srv.URL, then call
-	// Get with WithAPIKey (no WithBaseURL). With the bug, the request would
-	// go to http://localhost:18080; with the fix it stays on srv.URL.
+	// 重置全局状态，用 srv.URL 调用 Configure()，随后以 WithAPIKey（不带
+	// WithBaseURL）调用 Get。存在 bug 时请求会打向默认端点；修复后应保持
+	// 打向 srv.URL。
 	sandbox.ResetConfigureForTest()
 	t.Cleanup(sandbox.ResetConfigureForTest)
 	sandbox.Configure(srv.URL, "ask_global")

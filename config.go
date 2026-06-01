@@ -9,7 +9,7 @@ const (
 	envServer = "TALON_SANDBOX_SERVER"
 	envAPIKey = "TALON_SANDBOX_API_KEY"
 
-	defaultServer = "http://localhost:18080"
+	defaultServer = "https://api.sandbox.talon.net.cn"
 )
 
 var (

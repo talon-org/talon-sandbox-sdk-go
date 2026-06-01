@@ -167,13 +167,13 @@ func List(ctx context.Context, opts ListOpts, clientOpts ...Option) ([]*Sandbox,
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-// resolveClient returns the explicit client (from opts) or the global default.
+// resolveClient 返回显式传入 opts 对应的客户端，或全局默认客户端。
 //
-// When opts are present, the result inherits the global Configure() defaults
-// (baseURL / apiKey / httpClient) and then applies the supplied opts on top.
-// Without inheritance, passing `WithAPIKey("other")` to Create would silently
-// reset baseURL back to "http://localhost:18080", losing the production server
-// set by an earlier Configure() call.
+// 有 opts 时，结果会先继承 Configure() 设置的全局默认值
+// （baseURL / apiKey / httpClient），再在此基础上应用传入的 opts。
+// 若不做继承，传入 WithAPIKey("other") 给 Create 时，baseURL 会被静默
+// 重置为默认端点（https://api.sandbox.talon.net.cn），导致早前通过
+// Configure() 设置的自部署端点丢失。
 func resolveClient(opts []Option) *Client {
 	base := defaultClient()
 	if len(opts) == 0 {
