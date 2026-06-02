@@ -14,7 +14,7 @@ func main() {
 	ctx := context.Background()
 
 	sb, err := sandbox.Create(ctx, sandbox.Opts{
-		Image:   "debian:bookworm-slim",
+		Image:   "talon-alpine",
 		Network: "open",
 		TTL:     "30m",
 	})

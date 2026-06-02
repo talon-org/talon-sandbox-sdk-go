@@ -10,7 +10,7 @@ import (
 type ImageInfo struct {
 	// ID 是 image 的唯一标识符（如 "img_abc123"）。
 	ID string `json:"id"`
-	// Name 是 image 的友好名称，如 "node:20-bookworm"。
+	// Name 是 image 的友好名称，如 "talon-alpine"。
 	Name string `json:"name"`
 	// URL 是 OCI 镜像拉取地址。
 	URL string `json:"url"`

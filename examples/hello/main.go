@@ -13,7 +13,7 @@ func main() {
 	ctx := context.Background()
 
 	sb, err := sandbox.Create(ctx, sandbox.Opts{
-		Image:   "node:20-bookworm",
+		Image:   "talon-alpine",
 		Resources: sandbox.Resources{CPU: 1, Memory: "2GiB"},
 		Network: "allowlist",
 		TTL:     "1h",

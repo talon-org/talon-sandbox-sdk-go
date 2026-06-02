@@ -135,7 +135,7 @@ func (s *Sandbox) Refresh(ctx context.Context) (SandboxInfo, error) {
 // Example:
 //
 //	sb, err := sandbox.Create(ctx, sandbox.Opts{
-//	    Image:     "node:20-bookworm",
+//	    Image:     "talon-alpine",
 //	    Resources: sandbox.Resources{CPU: 2, Memory: "4GiB"},
 //	    Network:   "allowlist",
 //	    Timeout:   "30m",

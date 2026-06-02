@@ -4,7 +4,7 @@ import "time"
 
 // Opts configures a new sandbox.
 type Opts struct {
-	// Image is the container image reference, e.g. "node:20-bookworm".
+	// Image is the container image reference, e.g. "talon-alpine".
 	Image string
 	// Resources describes compute allocation. Strings accepted: "4GiB", "10GiB".
 	Resources Resources
