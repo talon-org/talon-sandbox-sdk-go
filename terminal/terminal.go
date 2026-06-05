@@ -19,6 +19,8 @@ import (
 	"sync"
 
 	"github.com/coder/websocket"
+
+	"x.xgit.pro/dark/talon-sandbox-sdk-go/internal/httpx"
 )
 
 // Terminal manages PTY sessions for a single sandbox.
@@ -44,16 +46,16 @@ func New(sandboxID, wsBase, authHeader string, cookies []*http.Cookie) *Terminal
 func (t *Terminal) Open(ctx context.Context) (*PTYSession, error) {
 	wsURL := toWS(t.wsBase + "/v1/sandboxes/" + t.sandboxID + "/pty")
 
-	opts := &websocket.DialOptions{}
+	// WebSocket 握手头也带规范 User-Agent,与 HTTP 请求一致,保证来源归因为 sdk-go。
+	opts := &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"User-Agent": {httpx.UserAgent()},
+		},
+	}
 	if t.authHdr != "" {
-		opts.HTTPHeader = http.Header{
-			"Authorization": {t.authHdr},
-		}
+		opts.HTTPHeader.Set("Authorization", t.authHdr)
 	}
 	if len(t.cookies) > 0 {
-		if opts.HTTPHeader == nil {
-			opts.HTTPHeader = http.Header{}
-		}
 		parts := make([]string, 0, len(t.cookies))
 		for _, ck := range t.cookies {
 			parts = append(parts, ck.Name+"="+ck.Value)

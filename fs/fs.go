@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"x.xgit.pro/dark/talon-sandbox-sdk-go/internal/httpx"
 )
 
 // FS provides filesystem operations inside a sandbox.
@@ -141,6 +143,8 @@ func (f *FS) setAuth(req *http.Request) {
 	if f.authHeader != "" {
 		req.Header.Set("Authorization", f.authHeader)
 	}
+	// 规范 User-Agent,与根客户端一致,保证来源归因为 sdk-go。
+	req.Header.Set("User-Agent", httpx.UserAgent())
 }
 
 // cleanPath strips leading slash and URL-encodes each path segment.

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"x.xgit.pro/dark/talon-sandbox-sdk-go/internal/httpx"
 )
 
 // Env provides environment variable operations inside a sandbox.
@@ -145,4 +147,6 @@ func (e *Env) setAuth(req *http.Request) {
 	if e.authHeader != "" {
 		req.Header.Set("Authorization", e.authHeader)
 	}
+	// 规范 User-Agent,与根客户端一致,保证来源归因为 sdk-go。
+	req.Header.Set("User-Agent", httpx.UserAgent())
 }

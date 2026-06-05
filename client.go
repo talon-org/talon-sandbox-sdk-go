@@ -17,6 +17,11 @@ import (
 
 const defaultRequestTimeout = 30 * time.Second
 
+// Version 返回当前 SDK 的版本号(如 "0.1.4")。
+// 版本从构建元数据(runtime/debug)动态解析,下游 import 时自动反映真实依赖版本,
+// 取不到时回落到内置兜底常量。SDK 出站请求的 User-Agent 也基于此版本。
+func Version() string { return httpx.Version() }
+
 // Client is the HTTP client for all SDK operations.
 // A Client is safe for concurrent use by multiple goroutines.
 type Client struct {
@@ -102,6 +107,9 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body any) 
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
+	// 规范 User-Agent:后端按 "talon-sandbox-go/<version>" 前缀把
+	// createSandbox 来源归因为 sdk-go(见 internal/httpx.UserAgent)。
+	req.Header.Set("User-Agent", httpx.UserAgent())
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}

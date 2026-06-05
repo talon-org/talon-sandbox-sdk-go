@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"x.xgit.pro/dark/talon-sandbox-sdk-go/internal/httpx"
 )
 
 // Browser manages a headless Chromium session inside a sandbox.
@@ -48,9 +50,7 @@ func (b *Browser) Start(ctx context.Context) (*BrowserSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b.authHeader != "" {
-		req.Header.Set("Authorization", b.authHeader)
-	}
+	b.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := b.httpClient.Do(req)
@@ -81,9 +81,7 @@ func (b *Browser) Get(ctx context.Context) (*BrowserSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b.authHeader != "" {
-		req.Header.Set("Authorization", b.authHeader)
-	}
+	b.setAuth(req)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := b.httpClient.Do(req)
@@ -114,9 +112,7 @@ func (b *Browser) Stop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if b.authHeader != "" {
-		req.Header.Set("Authorization", b.authHeader)
-	}
+	b.setAuth(req)
 
 	resp, err := b.httpClient.Do(req)
 	if err != nil {
@@ -131,4 +127,13 @@ func (b *Browser) Stop(ctx context.Context) error {
 		return fmt.Errorf("browser stop: HTTP %d: %s", resp.StatusCode, e.Error)
 	}
 	return nil
+}
+
+// setAuth 设置 Authorization 与规范 User-Agent,与根客户端一致,
+// 保证来源归因为 sdk-go。
+func (b *Browser) setAuth(req *http.Request) {
+	if b.authHeader != "" {
+		req.Header.Set("Authorization", b.authHeader)
+	}
+	req.Header.Set("User-Agent", httpx.UserAgent())
 }
