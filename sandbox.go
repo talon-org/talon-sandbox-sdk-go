@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"time"
 
@@ -166,15 +167,37 @@ func Get(ctx context.Context, id string, clientOpts ...Option) (*Sandbox, error)
 }
 
 // List returns sandboxes for the current tenant, optionally filtered by labels.
+//
+// 当 opts.Labels 非空时，将每个 (key, value) 拼成 label=key:value 查询参数
+// 附加到请求 URL，交由服务端先行过滤（AND 语义）。
+// 同时保留客户端侧的 matchesLabels 二次过滤：
+//   - 兼容不识别 label 参数的旧服务端（旧服务端会忽略未知参数，仍返回全量，
+//     客户端过滤保证结果正确）；
+//   - 作为防御性双保险，防止服务端过滤存在遗漏。
 func List(ctx context.Context, opts ListOpts, clientOpts ...Option) ([]*Sandbox, error) {
 	c := resolveClient(clientOpts)
+
+	// 构造请求路径：labels 非空时附加服务端过滤查询参数。
+	path := "/v1/sandboxes"
+	if len(opts.Labels) > 0 {
+		// 使用 url.Values 正确编码特殊字符；
+		// key 固定为 "label"，value 为 "labelKey:labelValue"（冒号分隔）。
+		// 多个 label 条目多次 Add，服务端以 AND 语义解释。
+		q := url.Values{}
+		for k, v := range opts.Labels {
+			q.Add("label", k+":"+v)
+		}
+		path = "/v1/sandboxes?" + q.Encode()
+	}
+
 	var out struct {
 		Sandboxes []SandboxInfo `json:"sandboxes"`
 	}
-	if _, err := c.get(ctx, "/v1/sandboxes", &out); err != nil {
+	if _, err := c.get(ctx, path, &out); err != nil {
 		return nil, fmt.Errorf("list sandboxes: %w", err)
 	}
 
+	// 客户端侧二次过滤：兼容旧服务端 + 防御性双保险。
 	var result []*Sandbox
 	for _, info := range out.Sandboxes {
 		info := info // capture
